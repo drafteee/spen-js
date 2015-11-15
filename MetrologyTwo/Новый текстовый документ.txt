@@ -1,0 +1,53 @@
+// requires
+var CompositeDisposable = require('atom').CompositeDisposable,
+    fs = require('fs-plus'),
+    _ = require('underscore'),
+    parinfer = require('./parinfer.js');
+
+// TODO: this isn't really ready yet; needs to be configurable
+// leave it out for now
+var notificationsEnabled = false;
+
+// stateful
+var editorStates = {}, // keep track of the Parinfer mode for each editor instance
+    fileExtensionsToWatch = null, // array of file extensions to watch and automatically start parinfer
+    subscriptions = null; // stupid variable for Atom's stupid CompositeDisposable system
+
+// NOTE: This value seems to work well for the debounce interval.
+// I don't notice any lag when typing on my machine and the result seems to
+// display fast enough that it doesn't feel "delayed".
+// Feel free to play around with it on your machine if that is not the case.
+const debounceIntervalMs = 10;
+
+// editor states
+const DISABLED = 'disabled',
+      INDENT_MODE = 'indent-mode',
+      PAREN_MODE = 'paren-mode';
+
+//------------------------------------------------------------------------------
+// Util
+//------------------------------------------------------------------------------
+
+function endsWith(train, caboose) {
+  return train.substring(train.length - caboose.length) === caboose;
+}
+
+// http://stackoverflow.com/questions/105034/create-guid-uuid-in-javascript#answer-2117523
+function uuid() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random()*16|0, v = c == 'x' ? r : (r&0x3|0x8);
+    return v.toString(16);
+  });
+}
+
+function byId(id) {
+  return document.getElementById(id);
+}
+
+function qs(selector) {
+  return document.querySelector(selector);
+}
+
+//------------------------------------------------------------------------------
+// File Extensions to Watch
+//------------------------------------------------------------------------------
